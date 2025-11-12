@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/chirrup_logo.png" alt="Chirrup Logo" width="400">
+  <img src="assets/chirrup_logo.png" alt="Chirrup Logo" width="450">
 </div>
 
 # Chirrup
@@ -7,6 +7,19 @@
 > /ˈCHirəp/ — (especially of a small bird) make repeated short high-pitched sounds; twitter.
 
 **Chirrup** is a high-performance inference frontend for RWKV models, built on top of [Albatross](https://github.com/BlinkDL/Albatross).
+
+---
+
+## 📊 Performance
+
+### November 12, 2025
+
+| GPU Configuration   | Model | Workers | Batch Size/Worker | Total Concurrent Requests | Tokens/Second per Request |
+| ------------------- | ----- | ------- | ----------------- | ------------------------- | ------------------------- |
+| 4 × RTX 4090 24GB   | 7.2B  | 4       | 200               | 800                       | 16 tps                    |
+| 4 × Tesla V100 16GB | 7.2B  | 4       | 34                | 136                       | 17 tps                    |
+
+> **Note**: The RTX 4090 configuration is far from the GPU's processing limits, with significant optimization potential remaining.
 
 ## ✨ Features
 
@@ -24,6 +37,19 @@
 - [ ] Constrained decoding (e.g., JSON schema)
 - [ ] Function Calling support
 - [ ] Pipeline parallelism to enable inference of even larger models
+
+---
+
+## � Performance
+
+### November 12, 2025
+
+| GPU Configuration   | Model | Workers | Batch Size/Worker | Total Concurrent Requests | Tokens/Second per Request |
+| ------------------- | ----- | ------- | ----------------- | ------------------------- | ------------------------- |
+| 4 × RTX 4090 24GB   | 7.2B  | 4       | 200               | 800                       | 16 tps                    |
+| 4 × Tesla V100 16GB | 7.2B  | 4       | 34                | 136                       | 17 tps                    |
+
+> **Note**: The RTX 4090 configuration is far from the GPU's processing limits, with significant optimization potential remaining.
 
 ---
 
@@ -56,7 +82,7 @@ uv pip install -e .
 uv sync --extra torch-cu129 --extra dev
 ```
 
-> 💡 You may use `torch-cu126` instead if your system requires it, or customize the PyTorch backend in `pyproject.toml`.
+> 💡 You may use `torch-cu126` or `torch-rocm` instead if your system requires it, or customize the PyTorch backend in `pyproject.toml`.
 
 ---
 
@@ -65,8 +91,9 @@ uv sync --extra torch-cu129 --extra dev
 ### Quick Start
 
 ```bash
-# Start API service (with default configuration)
-uv run python -m chirrup.web_service.app --model_path /path/to/your/model
+# Currently, `triton._C.libtriton` doesn't declare itself GIL-safe, but it actually works fine—so we
+#     manually disable the GIL with `PYTHON_GIL=0`.
+PYTHON_GIL=0 uv run python -m chirrup.web_service.app --model_path /path/to/your/model
 ```
 
 The service will start at **`http://127.0.0.1:8000`**, providing OpenAI-compatible API endpoints.
@@ -82,7 +109,7 @@ The service will start at **`http://127.0.0.1:8000`**, providing OpenAI-compatib
 [**Demo:**](./test/demo_stream_output.py)
 
 ```bash
-uv run test/demo_stream_output.py --model_path /path/to/your/model
+PYTHON_GIL=0 uv run test/demo_stream_output.py --model_path /path/to/your/model
 ```
 
 **Code Example:**
@@ -115,7 +142,7 @@ async for event in completion:
 [**Demo:**](./test/demo_batch_output.py)
 
 ```bash
-uv run test/demo_batch_output.py --model_path /path/to/your/model --batch_size 32 --task_num 512 --worker_num 4
+PPYTHON_GIL=0 v run test/demo_batch_output.py --model_path /path/to/your/model --batch_size 32 --task_num 512 --worker_num 4
 ```
 
 **Code Example:**
