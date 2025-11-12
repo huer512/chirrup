@@ -2,16 +2,18 @@ version = 1
 revision = 3
 requires-python = ">=3.14"
 resolution-markers = [
-    "extra != 'extra-7-chirrup-torch-cpu' and extra != 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-cu129'",
-    "extra != 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu126' and extra != 'extra-7-chirrup-torch-cu129'",
-    "sys_platform != 'darwin' and extra == 'extra-7-chirrup-torch-cpu' and extra != 'extra-7-chirrup-torch-cu126' and extra != 'extra-7-chirrup-torch-cu129'",
-    "sys_platform == 'darwin' and extra == 'extra-7-chirrup-torch-cpu' and extra != 'extra-7-chirrup-torch-cu126' and extra != 'extra-7-chirrup-torch-cu129'",
-    "extra != 'extra-7-chirrup-torch-cpu' and extra != 'extra-7-chirrup-torch-cu126' and extra != 'extra-7-chirrup-torch-cu129'",
+    "extra != 'extra-7-chirrup-torch-cpu' and extra != 'extra-7-chirrup-torch-cu126' and extra != 'extra-7-chirrup-torch-cu129' and extra == 'extra-7-chirrup-torch-rocm'",
+    "extra != 'extra-7-chirrup-torch-cpu' and extra != 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-cu129' and extra != 'extra-7-chirrup-torch-rocm'",
+    "extra != 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu126' and extra != 'extra-7-chirrup-torch-cu129' and extra != 'extra-7-chirrup-torch-rocm'",
+    "sys_platform != 'darwin' and extra == 'extra-7-chirrup-torch-cpu' and extra != 'extra-7-chirrup-torch-cu126' and extra != 'extra-7-chirrup-torch-cu129' and extra != 'extra-7-chirrup-torch-rocm'",
+    "sys_platform == 'darwin' and extra == 'extra-7-chirrup-torch-cpu' and extra != 'extra-7-chirrup-torch-cu126' and extra != 'extra-7-chirrup-torch-cu129' and extra != 'extra-7-chirrup-torch-rocm'",
+    "extra != 'extra-7-chirrup-torch-cpu' and extra != 'extra-7-chirrup-torch-cu126' and extra != 'extra-7-chirrup-torch-cu129' and extra != 'extra-7-chirrup-torch-rocm'",
 ]
 conflicts = [[
     { package = "chirrup", extra = "torch-cpu" },
     { package = "chirrup", extra = "torch-cu126" },
     { package = "chirrup", extra = "torch-cu129" },
+    { package = "chirrup", extra = "torch-rocm" },
 ]]
 
 [[package]]
@@ -101,14 +103,18 @@ dev = [
     { name = "tqdm" },
 ]
 torch-cpu = [
-    { name = "torch", version = "2.9.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-7-chirrup-torch-cpu') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu126') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu129') or (extra == 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-cu129')" },
-    { name = "torch", version = "2.9.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-7-chirrup-torch-cpu') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu126') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu129') or (extra == 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-cu129')" },
+    { name = "torch", version = "2.9.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-7-chirrup-torch-cpu') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu126') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu129') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-rocm') or (extra == 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-cu129') or (extra == 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-rocm') or (extra == 'extra-7-chirrup-torch-cu129' and extra == 'extra-7-chirrup-torch-rocm')" },
+    { name = "torch", version = "2.9.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-7-chirrup-torch-cpu') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu126') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu129') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-rocm') or (extra == 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-cu129') or (extra == 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-rocm') or (extra == 'extra-7-chirrup-torch-cu129' and extra == 'extra-7-chirrup-torch-rocm')" },
 ]
 torch-cu126 = [
     { name = "torch", version = "2.9.0+cu126", source = { registry = "https://download.pytorch.org/whl/cu126" } },
 ]
 torch-cu129 = [
     { name = "torch", version = "2.9.0+cu129", source = { registry = "https://download.pytorch.org/whl/cu129" } },
+]
+torch-rocm = [
+    { name = "pytorch-triton-rocm" },
+    { name = "torch", version = "2.9.1+rocm6.4", source = { registry = "https://download.pytorch.org/whl/rocm6.4" } },
 ]
 
 [package.metadata]
@@ -119,23 +125,25 @@ requires-dist = [
     { name = "openai", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "pydantic", specifier = ">=2.12.3" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
+    { name = "pytorch-triton-rocm", marker = "extra == 'torch-rocm'", index = "https://download.pytorch.org/whl/rocm6.4" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "requests", marker = "extra == 'dev'", specifier = ">=2.32.5" },
     { name = "snowflake-id", specifier = ">=1.0.2" },
     { name = "torch", marker = "extra == 'torch-cpu'", specifier = ">=2.8.0", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "chirrup", extra = "torch-cpu" } },
     { name = "torch", marker = "extra == 'torch-cu126'", specifier = ">=2.8.0", index = "https://download.pytorch.org/whl/cu126", conflict = { package = "chirrup", extra = "torch-cu126" } },
     { name = "torch", marker = "extra == 'torch-cu129'", specifier = ">=2.8.0", index = "https://download.pytorch.org/whl/cu129", conflict = { package = "chirrup", extra = "torch-cu129" } },
+    { name = "torch", marker = "extra == 'torch-rocm'", specifier = "==2.9.1+rocm6.4", index = "https://download.pytorch.org/whl/rocm6.4", conflict = { package = "chirrup", extra = "torch-rocm" } },
     { name = "tqdm", marker = "extra == 'dev'", specifier = ">=4.67.1" },
     { name = "uvicorn", specifier = ">=0.38.0" },
 ]
-provides-extras = ["torch-cpu", "torch-cu129", "torch-cu126", "dev"]
+provides-extras = ["torch-cpu", "torch-cu129", "torch-cu126", "torch-rocm", "dev"]
 
 [[package]]
 name = "click"
 version = "8.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu126') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu129') or (extra == 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-cu129')" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu126') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu129') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-rocm') or (extra == 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-cu129') or (extra == 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-rocm') or (extra == 'extra-7-chirrup-torch-cu129' and extra == 'extra-7-chirrup-torch-rocm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/46/61/de6cd827efad202d7057d93e0fed9294b96952e188f7384832791c7b2254/click-8.3.0.tar.gz", hash = "sha256:e7b8232224eba16f4ebe410c25ced9f7875cb5f3263ffc93cc3e8da705e229c4", size = 276943, upload-time = "2025-09-18T17:32:23.696Z" }
 wheels = [
@@ -477,8 +485,8 @@ name = "nvidia-cudnn-cu12"
 version = "9.10.2.21"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12", version = "12.6.4.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-chirrup-torch-cu126' or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu129')" },
-    { name = "nvidia-cublas-cu12", version = "12.9.1.4", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu126') or (extra != 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-cu129') or (extra != 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu129')" },
+    { name = "nvidia-cublas-cu12", version = "12.6.4.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-chirrup-torch-cu126' or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu129') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-rocm') or (extra == 'extra-7-chirrup-torch-cu129' and extra == 'extra-7-chirrup-torch-rocm')" },
+    { name = "nvidia-cublas-cu12", version = "12.9.1.4", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-7-chirrup-torch-cu129' or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu126') or (extra == 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-rocm') or (extra == 'extra-7-chirrup-torch-cpu' and extra != 'extra-7-chirrup-torch-cu129' and extra == 'extra-7-chirrup-torch-rocm')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fa/41/e79269ce215c857c935fd86bcfe91a451a584dfc27f1e068f568b9ad1ab7/nvidia_cudnn_cu12-9.10.2.21-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:c9132cc3f8958447b4910a1720036d9eff5928cc3179b0a51fb6d167c6cc87d8", size = 705026878, upload-time = "2025-06-06T21:52:51.348Z" },
@@ -781,6 +789,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pytorch-triton-rocm"
+version = "3.5.1"
+source = { registry = "https://download.pytorch.org/whl/rocm6.4" }
+wheels = [
+    { url = "https://download.pytorch.org/whl/pytorch_triton_rocm-3.5.1-cp314-cp314-linux_x86_64.whl" },
+    { url = "https://download.pytorch.org/whl/pytorch_triton_rocm-3.5.1-cp314-cp314t-linux_x86_64.whl" },
+]
+
+[[package]]
 name = "pyyaml"
 version = "6.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -995,11 +1012,30 @@ wheels = [
 ]
 
 [[package]]
+name = "torch"
+version = "2.9.1+rocm6.4"
+source = { registry = "https://download.pytorch.org/whl/rocm6.4" }
+dependencies = [
+    { name = "filelock" },
+    { name = "fsspec" },
+    { name = "jinja2" },
+    { name = "networkx" },
+    { name = "pytorch-triton-rocm", marker = "sys_platform == 'linux'" },
+    { name = "setuptools" },
+    { name = "sympy" },
+    { name = "typing-extensions" },
+]
+wheels = [
+    { url = "https://download.pytorch.org/whl/rocm6.4/torch-2.9.1%2Brocm6.4-cp314-cp314-manylinux_2_28_x86_64.whl" },
+    { url = "https://download.pytorch.org/whl/rocm6.4/torch-2.9.1%2Brocm6.4-cp314-cp314t-manylinux_2_28_x86_64.whl" },
+]
+
+[[package]]
 name = "tqdm"
 version = "4.67.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu126') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu129') or (extra == 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-cu129')" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu126') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-cu129') or (extra == 'extra-7-chirrup-torch-cpu' and extra == 'extra-7-chirrup-torch-rocm') or (extra == 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-cu129') or (extra == 'extra-7-chirrup-torch-cu126' and extra == 'extra-7-chirrup-torch-rocm') or (extra == 'extra-7-chirrup-torch-cu129' and extra == 'extra-7-chirrup-torch-rocm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a8/4b/29b4ef32e036bb34e4ab51796dd745cdba7ed47ad142a9f4a1eb8e0c744d/tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2", size = 169737, upload-time = "2024-11-24T20:12:22.481Z" }
 wheels = [
