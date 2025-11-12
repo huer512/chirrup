@@ -37,6 +37,10 @@ MyDisable = torch.compiler.disable
 
 DTYPE = torch.half
 ROCm_flag = torch.version.hip is not None
+CUDA_ARCH_GE_80_FLAG = False
+if not ROCm_flag and torch.cuda.is_available():
+    cuda_major, cuda_minor = torch.cuda.get_device_capability()
+    CUDA_ARCH_GE_80_FLAG = cuda_major >= 8
 
 ########################################################################################################
 
@@ -46,26 +50,30 @@ HEAD_SIZE = 64
 if ROCm_flag == True:
     load(name="rwkv7_state_fwd_fp16", sources=[f"{current_path}/hip/rwkv7_state_fwd_fp16_op.hip", f"{current_path}/hip/rwkv7_state_fwd_fp16.hip"], is_python_module=False,
                     verbose=True, extra_cuda_cflags=['-fopenmp', '-ffast-math', '-O3', '-munsafe-fp-atomics', f"-D_N_={HEAD_SIZE}"])
-else:
+elif CUDA_ARCH_GE_80_FLAG == True:
     load(name="rwkv7_state_fwd_fp16", sources=[f"{current_path}/cuda/rwkv7_state_fwd_fp16.cpp", f"{current_path}/cuda/rwkv7_state_fwd_fp16.cu"], is_python_module=False,
                     verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}"] + (["-Xptxas -O3"] if os.name != "nt" else []))
+else:
+    load(name="rwkv7_state_fwd_fp16", sources=[f"{current_path}/cuda/sm80/rwkv7_state_fwd_fp16.cpp", f"{current_path}/cuda/sm80/rwkv7_state_fwd_fp16.cu"], is_python_module=False,
+                    verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}"] + (["-Xptxas -O3"] if os.name != "nt" else []))
 
-class SPMV(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, vec, mat):
+if CUDA_ARCH_GE_80_FLAG == True:
+    class SPMV(torch.autograd.Function):
+        @staticmethod
+        def forward(ctx, vec, mat):
+            D, C = mat.size()
+            out = torch.zeros((C,), device=vec.device, dtype=DTYPE, requires_grad=False)
+            torch.ops.rwkv7_state_fwd_fp16.spmv_forward(D, C, vec, mat, out)
+            return out
+
+    @torch.library.custom_op("mylib::SPMV_OP", mutates_args=())
+    # @MyDisable
+    def SPMV_OP(vec:torch.Tensor, mat:torch.Tensor) -> torch.Tensor:
+        return SPMV.apply(vec, mat)
+    @SPMV_OP.register_fake
+    def _(vec:torch.Tensor, mat:torch.Tensor) -> torch.Tensor:
         D, C = mat.size()
-        out = torch.zeros((C,), device=vec.device, dtype=DTYPE, requires_grad=False)
-        torch.ops.rwkv7_state_fwd_fp16.spmv_forward(D, C, vec, mat, out)
-        return out
-
-@torch.library.custom_op("mylib::SPMV_OP", mutates_args=())
-# @MyDisable
-def SPMV_OP(vec:torch.Tensor, mat:torch.Tensor) -> torch.Tensor:
-    return SPMV.apply(vec, mat)
-@SPMV_OP.register_fake
-def _(vec:torch.Tensor, mat:torch.Tensor) -> torch.Tensor:
-    D, C = mat.size()
-    return torch.zeros((C,), device=vec.device, dtype=DTYPE, requires_grad=False)
+        return torch.zeros((C,), device=vec.device, dtype=DTYPE, requires_grad=False)
 ############################################### gems ###################################################
 if ROCm_flag == False:
     try:
