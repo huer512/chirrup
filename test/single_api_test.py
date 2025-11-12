@@ -18,10 +18,10 @@ It's combining the best of RNN and transformer - great performance, linear time,
 async def stream_openai_request():
     client = AsyncOpenAI(base_url=DEFAULT_API_URL, api_key="xxx")
     system = SYSTEM.format(date=datetime.datetime.now().strftime("%Y/%m/%d, %A"))
-    print(system)
-    messages = [ {"role": "system", "content": system}]
+
+    messages = [{"role": "system", "content": system}]
     tps_recorder = deque(maxlen=20)
-    
+
     while (line := input(">>>")) != "":
         messages.append({"role": "user", "content": line})
         stream = await client.chat.completions.create(
@@ -35,7 +35,7 @@ async def stream_openai_request():
             content = chunk.choices[0].delta.content
             if content:
                 print(content, end="", flush=True)
-                tps_recorder.append(1/(time.perf_counter() - c_start))
+                tps_recorder.append(1 / (time.perf_counter() - c_start))
                 c_start = time.perf_counter()
         print(f"\n(tps: {sum(tps_recorder)/len(tps_recorder):.2f})")
 

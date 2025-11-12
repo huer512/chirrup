@@ -12,7 +12,7 @@ async def test_engine_core():
     model_config = ModelLoadConfig(
         model_path="../models/rwkv7-g0a3-7.2b-20251029-ctx8192.pth",
         # model_path="../models/rwkv7-g1a3-1.5b-20251015-ctx8192",
-        vocab_path="../Albatross/reference/rwkv_vocab_v20230424.txt",
+        vocab_path="./Albatross/reference/rwkv_vocab_v20230424.txt",
         vocab_size=65536,
         head_size=64,
     )
@@ -23,7 +23,7 @@ async def test_engine_core():
     try:
         # 测试初始化 Worker
         print("测试初始化 Worker...")
-        await engine_core.init(worker_num=1, model_config=model_config, batch_size=33)
+        await engine_core.init(worker_num=1, model_config=model_config, batch_size=17)
 
         print("测试创建 completion 对象...")
 
