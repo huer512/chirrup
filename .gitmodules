@@ -1,0 +1,3 @@
+[submodule "Albatross"]
+	path = Albatross
+	url = https://github.com/BlinkDL/Albatross.git
