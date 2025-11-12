@@ -300,14 +300,17 @@ class Worker:
         # cache pos_a
         self.batch_state[0][:, :, [self.real_state_size - 1], :] = self.batch_state[0][:, :, [pos_a], :]
         self.batch_state[1][:, [self.real_state_size - 1], :, :] = self.batch_state[1][:, [pos_a], :, :]
+        self.batch_state[2][[self.real_state_size - 1]] = self.batch_state[2][[pos_a]]
 
         # pos_b -> pos_a
         self.batch_state[0][:, :, [pos_a], :] = self.batch_state[0][:, :, [pos_b], :]
         self.batch_state[1][:, [pos_a], :, :] = self.batch_state[1][:, [pos_b], :, :]
+        self.batch_state[2][[pos_a]] = self.batch_state[2][[pos_b]]
 
         # cached pos_a -> pos_b
         self.batch_state[0][:, :, [pos_b], :] = self.batch_state[0][:, :, [self.real_state_size - 1], :]
         self.batch_state[1][:, [pos_b], :, :] = self.batch_state[1][:, [self.real_state_size - 1], :, :]
+        self.batch_state[2][[pos_b]] = self.batch_state[2][[self.real_state_size - 1]]
 
         # occurrence
         self.occurrence[[self.real_state_size - 1], :] = self.occurrence[[pos_a], :]
@@ -400,6 +403,7 @@ class Worker:
                             "state": [
                                 self.batch_state[0][:, :, [slot_pos], :].to(device="cpu", non_blocking=True),
                                 self.batch_state[1][:, [slot_pos], :, :].to(device="cpu", non_blocking=True),
+                                self.batch_state[2][[slot_pos]].to(device="cpu", non_blocking=True),
                             ],
                             "prefilled_tokens": task_data["prefilled_tokens"],
                         },
@@ -432,6 +436,7 @@ class Worker:
                         "state": [
                             self.batch_state[0][:, :, [slot_pos], :].to(device="cpu", non_blocking=True),
                             self.batch_state[1][:, [slot_pos], :, :].to(device="cpu", non_blocking=True),
+                            self.batch_state[2][[slot_pos]].to(device="cpu", non_blocking=True),
                         ],
                         "prefilled_tokens": task_data["prefilled_tokens"],
                     },
@@ -497,10 +502,11 @@ class Worker:
 
         for slot in accomplished_task_slot_pos:
 
-            self.state_slot[slot]["task"].state = [
-                self.batch_state[0][:, :, [slot], :].to(device="cpu", non_blocking=True),
-                self.batch_state[1][:, [slot], :, :].to(device="cpu", non_blocking=True),
-            ]
+            # self.state_slot[slot]["task"].state = [
+            #     self.batch_state[0][:, :, [slot], :].to(device="cpu", non_blocking=True),
+            #     self.batch_state[1][:, [slot], :, :].to(device="cpu", non_blocking=True),
+            #     self.batch_state[2][[slot]].to(device="cpu", non_blocking=True),
+            # ]
             self.state_slot[slot]["task"].output_queue.put_nowait(
                 (self.state_slot[slot]["task"].task_id, "task_completed", self.state_slot[slot]["task"])
             )
@@ -534,6 +540,7 @@ class Worker:
 
                 self.batch_state[0][:, :, [slot_pos], :] = new_state[0]
                 self.batch_state[1][:, [slot_pos], :, :] = new_state[1]
+                self.batch_state[2][[slot_pos]] = new_state[2]
 
                 self.occurrence[[slot_pos], :] = torch.zeros(
                     (1, self.model_config.vocab_size),
