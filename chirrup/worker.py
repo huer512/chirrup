@@ -622,6 +622,7 @@ class Worker:
         forward_state = [
             self.batch_state[0][:, :, decode_slice, :],
             self.batch_state[1][:, decode_slice, :, :],
+            self.batch_state[1][decode_slice],
         ]
 
         # print("fo", next_tokens)
@@ -679,6 +680,7 @@ class Worker:
         seq_forward_state = [
             self.batch_state[0][:, :, seq_perfill_offset[0] : seq_perfill_offset[1], :],
             self.batch_state[1][:, seq_perfill_offset[0] : seq_perfill_offset[1], :, :],
+            self.batch_state[1][seq_perfill_offset[0] : seq_perfill_offset[1]],
         ]
         # print("fs", next_tokens)
         out = self.model.forward_batch(next_tokens, seq_forward_state)
