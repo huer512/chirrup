@@ -14,8 +14,8 @@ from chirrup.utils.samplers import sample_logits_real_batch
 # 定义TaskData的类型结构
 from typing_extensions import TypedDict
 
-from Albatross.reference.rwkv7 import RWKV_x070 as RWKV_x070_ORIGINAL
-from Albatross.reference.utils import TRIE_TOKENIZER
+from Albatross.rwkv7 import RWKV_x070 as RWKV_x070_ORIGINAL
+from Albatross.utils import TRIE_TOKENIZER
 
 from collections import defaultdict
 
