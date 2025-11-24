@@ -10,8 +10,9 @@ async def test_engine_core():
 
     # 创建模型配置
     model_config = ModelLoadConfig(
-        model_path="/mnt/64F412C7F4129AFE/rwkv7-g0a-7.2b-20250829-ctx4096.pth",
+        # model_path="/mnt/64F412C7F4129AFE/rwkv7-g0a-7.2b-20250829-ctx4096.pth",
         # model_path="../models/rwkv7-g1a3-1.5b-20251015-ctx8192",
+        model_path="../models/rwkv7-g0a3-7.2b-20251029-ctx8192.pth",
         vocab_path="./Albatross/rwkv_vocab_v20230424.txt",
         vocab_size=65536,
         head_size=64,
@@ -23,11 +24,11 @@ async def test_engine_core():
     try:
         # 测试初始化 Worker
         print("测试初始化 Worker...")
-        await engine_core.init(worker_num=1, model_config=model_config, batch_size=17)
+        await engine_core.init(worker_num=4, model_config=model_config, batch_size=17)
 
         print("测试创建 completion 对象...")
 
-        total = 100
+        total = 512
         pbar = tqdm(total=total, unit="Sequence")
 
         prompts = [f"User: 为什么 {i} 是一个有趣的数字？\n\nAssistant: </think>\n</think>" for i in range(total)]

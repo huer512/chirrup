@@ -10,7 +10,7 @@ Chirrup provides a high-performance, OpenAI-compatible API for RWKV model infere
 
 ```bash
 # Start with default configuration
-PYTHON_GIL=0 uv run python -m chirrup.web_service.app --model_path /path/to/your/model.pth
+PYTHON_GIL=0 uv run --frozen python -m chirrup.web_service.app --model_path /path/to/your/model.pth
 ```
 
 ### Command Line Parameters
@@ -33,7 +33,7 @@ The API service supports the following command-line parameters:
 
 ```bash
 # Configuration for 4 GPU machine to provide web service
-PYTHON_GIL=0 uv run python -m chirrup.web_service.app \
+PYTHON_GIL=0 uv run --frozen python -m chirrup.web_service.app \
   --model_path /path/to/your/model.pth \
   --worker_num 4 \
   --batch_size 32 \
@@ -42,7 +42,7 @@ PYTHON_GIL=0 uv run python -m chirrup.web_service.app \
   --port 8000
 
 # Single GPU
-PYTHON_GIL=0 uv run python -m chirrup.web_service.app \
+PYTHON_GIL=0 uv run --frozen python -m chirrup.web_service.app \
   --model_path /models/rwkv7-g1a3-1.5b.pth \
   --worker_num 1 \
   --batch_size 16 \
@@ -148,7 +148,7 @@ Create a chat completion, supporting both streaming and non-streaming responses.
 | `stop`              | string/array | `null`        | Stop words/sequences                 |
 | `pad_zero`          | boolean      | `true`        | Pad prompt with zero token           |
 
-**Model Variants:**
+**Models:**
 
 - `rwkv-latest`: Standard model with quick thinking
 - `rwkv-latest:thinking`: Model with detailed thinking process

@@ -13,7 +13,7 @@ async def test_engine_core():
     # 创建模型配置
     model_config = ModelLoadConfig(
         model_path="../models/rwkv7-g1a3-1.5b-20251015-ctx8192",
-        vocab_path="../Albatross/reference/rwkv_vocab_v20230424.txt",
+        vocab_path="../Albatross/rwkv_vocab_v20230424.txt",
         vocab_size=65536,
         head_size=64,
     )

@@ -6,8 +6,7 @@ from pydantic_settings import BaseSettings
 
 class Config(BaseSettings, cli_parse_args=True, cli_use_class_docs_for_groups=True):
     model_path: str = Field(default="../models/rwkv7-g0a3-7.2b-20251029-ctx8192.pth", description="模型文件路径")
-    # model_path: str = Field(default="../models/rwkv7-g1a3-1.5b-20251015-ctx8192.pth", description="模型文件路径")
-    vocab_path: str = Field(default="./Albatross/reference/rwkv_vocab_v20230424.txt", description="词汇表文件路径")
+    vocab_path: str = Field(default="./Albatross/rwkv_vocab_v20230424.txt", description="词汇表文件路径")
     vocab_size: int = Field(default=65536, description="词汇表大小")
     head_size: int = Field(default=64, description="头大小")
 

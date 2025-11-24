@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional, Union, AsyncGenerator
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
@@ -322,25 +322,32 @@ async def create_non_stream_completion_with_keep_alive(
     created = int(time.time())
 
     try:
-        # 为处理缓存
+        string_parser = StreamingStringParser(tries=TRIE_THINK_NO_TRIGGER)
+        string_parser.parse(completion.task.prompt_str.split("\n\n")[-1])
+
         async def full_completion_handle():
-            result = ""
+            content = ""
+            reasoning_content = ""
             async for event in completion:
                 if event[0] == "token":
-                    result += event[2]
+                    for text, state in string_parser.parse(event[2]):
+                        if state == "content":
+                            content += text
+                        elif state == "reasoning_content":
+                            reasoning_content += text
+                        else:
+                            continue
                 elif event[0] == "cache_prefill":
                     state_cache.cache(event[1]["prefilled_tokens"], event[1]["state"])
-            return result
+                    print("已缓存预填充", event[1]["prefilled_tokens"])
+            return reasoning_content, content
 
         # 获取响应结果
-        while True:
-            try:
-                response_text = await asyncio.wait_for(asyncio.create_task(full_completion_handle()), timeout=10)
-                break
-            except asyncio.TimeoutError:
-                yield "\n\n"
+        completion_task = asyncio.create_task(full_completion_handle())
 
-        # 计算token数量（简化版本）
+        reasoning_content, content = await completion_task
+
+        # 计算token数量
         prompt_tokens = len(prefill_tokens)
         completion_tokens = len(completion.task.generated_tokens)
         total_tokens = prompt_tokens + completion_tokens
@@ -353,7 +360,7 @@ async def create_non_stream_completion_with_keep_alive(
             choices=[
                 ChatCompletionResponseChoice(
                     index=0,
-                    message=ChatMessage(role="assistant", content=response_text),
+                    message=ChatMessage(role="assistant", content=content, reasoning_content=reasoning_content),
                     finish_reason="stop",
                 )
             ],
@@ -368,6 +375,8 @@ async def create_non_stream_completion_with_keep_alive(
         yield response.model_dump_json()
 
     except Exception as e:
+        import traceback
+        print(traceback.format_exc())
         error_response = {"error": {"message": str(e), "type": "internal_error"}}
         yield json.dumps(error_response)
     finally:

@@ -116,10 +116,15 @@ class SimpleStateCache:
                 node.state = False
                 node.depend_count -= 1
 
+            if isinstance(key[1], list):
+                for _ in range(len(key[1])):
+                    del key[1][0]
+                    # print("remove")
             del key
 
     def remove(self, tokens: list[int]):
-        if self.LRU_cache.get(tuple(tokens)):
+        hashed_tokens = tuple(tokens)
+        if key := self.LRU_cache.get(hashed_tokens):
             node = self.root
 
             tmp_index = 0
@@ -139,6 +144,12 @@ class SimpleStateCache:
 
             if tmp_index == len(tokens):
                 node.state = False
+
+            if isinstance(key[1], list):
+                for _ in range(len(key[1])):
+                    del key[1][0]
+            del key
+            del self.LRU_cache.od[hashed_tokens]
 
 
 if __name__ == "__main__":
@@ -190,8 +201,25 @@ if __name__ == "__main__":
     cache.LRU_cache.capacity = 100
     cache.cache([1, 2, 5, 4], "state_4")
     cache.cache([1, 2, 3, 6, 9, 4, 5], "state_5")
+    print(cache.LRU_cache.od)
     print_tire_tree(cache.root, value="root")
     cache.remove([1, 2, 3, 4, 5])
+    print(cache.LRU_cache.od)
     print_tire_tree(cache.root, value="root")
     cache.remove([1, 2, 3, 4, 5, 6, 7])
+    print(cache.LRU_cache.od)
     print_tire_tree(cache.root, value="root")
+
+    import torch
+    import psutil
+
+    cache = SimpleStateCache(max_size=3)
+    # 记录当前内存使用情况
+    mem_before = psutil.Process().memory_info().rss
+    mem_delta = psutil.Process().memory_info().rss
+    for i in range(100):
+        cache.cache(
+            f"state_{i}",
+            [torch.rand(int(33.5 * 1024 * 1024) // 2, dtype=torch.float16)],
+        )
+        print(f"已使用内存: {(psutil.Process().memory_info().rss - mem_before) / 1024 / 1024:.2f} MB")

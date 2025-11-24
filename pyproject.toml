@@ -27,7 +27,6 @@ torch-cpu = ["torch>=2.8.0"]
 torch-cu129 = ["torch>=2.8.0"]
 torch-cu126 = ["torch>=2.8.0"]
 torch-rocm = ["torch==2.9.1+rocm6.4", "pytorch-triton-rocm"]
-dev = ["openai>=1.0.0", "requests>=2.32.5", "tqdm>=4.67.1"]
 
 [tool.uv]
 conflicts = [
@@ -70,3 +69,13 @@ explicit = true
 
 [tool.black]
 line-length = 120
+
+[dependency-groups]
+dev = [
+    "aiohttp>=3.13.2",
+    "openai>=1.0.0",
+    "requests>=2.32.5",
+    "tqdm>=4.67.1",
+    "ipykernel>=7.1.0",
+    "ipython>=9.7.0",
+]

@@ -66,7 +66,7 @@ source .venv/bin/activate  # Linux/macOS
 uv pip install -e .
 
 # Install dependencies with CUDA 12.9 support and dev tools
-uv sync --extra torch-cu129 --extra dev
+uv sync --extra torch-cu129 --dev
 ```
 
 > 💡 You may use `torch-cu126` instead if your system requires it, or customize the PyTorch backend in `pyproject.toml`.
@@ -92,12 +92,12 @@ uv pip install torch torchvision --index-url https://download.pytorch.org/whl/ro
 ```bash
 # Currently, `triton._C.libtriton` doesn't declare itself GIL-safe, but it actually works fine—so we
 # manually disable the GIL with `PYTHON_GIL=0`.
-PYTHON_GIL=0 uv run python -m chirrup.web_service.app --model_path /path/to/your/model
+PYTHON_GIL=0 uv run --frozen python -m chirrup.web_service.app --model_path /path/to/your/model
 ```
 
 The service will start at **`http://127.0.0.1:8000`**, providing OpenAI-compatible API endpoints.
 
-📖 **Detailed Documentation**: Check [./Docs/API.md](./Docs/API.md) for complete command-line parameters and API interface documentation.
+📖 **Detailed Documentation**: Check [Chirrup API Documentation](./Docs/API.md) for complete command-line parameters and API interface documentation.
 
 ---
 
@@ -108,7 +108,7 @@ The service will start at **`http://127.0.0.1:8000`**, providing OpenAI-compatib
 [**Demo:**](./test/demo_stream_output.py)
 
 ```bash
-PYTHON_GIL=0 uv run test/demo_stream_output.py --model_path /path/to/your/model
+PYTHON_GIL=0 uv run --frozen test/demo_stream_output.py --model_path /path/to/your/model
 ```
 
 **Code Example:**
@@ -141,7 +141,7 @@ async for event in completion:
 [**Demo:**](./test/demo_batch_output.py)
 
 ```bash
-PPYTHON_GIL=0 v run test/demo_batch_output.py --model_path /path/to/your/model --batch_size 32 --task_num 512 --worker_num 4
+PPYTHON_GIL=0 v run --frozen test/demo_batch_output.py --model_path /path/to/your/model --batch_size 32 --task_num 512 --worker_num 4
 ```
 
 **Code Example:**
