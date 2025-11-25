@@ -2,6 +2,8 @@ from typing import Dict, List, Optional, Union
 
 from collections import OrderedDict
 
+import asyncio
+
 import torch
 
 
@@ -39,12 +41,11 @@ class LRUCache:
 
 
 class TrieNode:
-    __slots__ = ("children", "state", "depend_count")
-
     def __init__(self):
         self.children: Dict[int, TrieNode] = {}
         self.state: bool = False
         self.depend_count: int = 0
+        self.prefill_condition: Optional[asyncio.Condition] = None
 
 
 class SimpleStateCache:
@@ -52,11 +53,12 @@ class SimpleStateCache:
         self.max_size = max_size
         self.root = TrieNode()
         self.LRU_cache = LRUCache(max_size)
+        self.prefill_lock = asyncio.Lock()
 
-    def check(
-        self,
-        tokens: list[int],
-    ) -> tuple[List[int], Union[List[torch.Tensor] | None]]:
+    def check(self, tokens: list[int], return_trie_node: bool = False) -> Union[
+        tuple[List[int], Union[List[torch.Tensor] | None]],
+        tuple[List[int], Union[List[torch.Tensor] | None], int, TrieNode],
+    ]:
         node = self.root
 
         token_index = 0
@@ -68,18 +70,76 @@ class SimpleStateCache:
             if node.state:
                 token_index = tmp_index
 
-            node = node.children.get(token)
-            if node is None:
+            next_node = node.children.get(token)
+            if next_node is None or next_node.depend_count == 0:
                 break
+            node = next_node
             tmp_index += 1
 
-        state = self.LRU_cache.get(tuple(tokens[:token_index]))
-        return tokens[token_index:], state
+        hashed_tokens = tuple(tokens[:token_index])
+        state = self.LRU_cache.get(hashed_tokens)
+        if return_trie_node:
+            return tokens[token_index:], state, token_index, node
+        return tokens[token_index:], state, token_index
+
+    async def check_and_wait_prefill(
+        self, tokens: list[int], cache_prefill_padding: int
+    ) -> tuple[List[int], Union[List[torch.Tensor] | None], int]:
+        async with self.prefill_lock:
+            # print("enter")
+            real_prefill_tokens, state, cached_token_len, node = self.check(tokens, return_trie_node=True)
+
+            if cached_token_len + cache_prefill_padding == len(tokens):
+                # print("leave all hit")
+                return real_prefill_tokens, state, cached_token_len
+
+            need_prefill_tokens = tokens[cached_token_len:-cache_prefill_padding]
+            # print(need_prefill_tokens)
+
+            for token in need_prefill_tokens:
+                if token not in node.children:
+                    # print("new node")
+                    node.children[token] = TrieNode()
+                node = node.children[token]
+
+            if node.prefill_condition is None:
+                node.prefill_condition = asyncio.Condition()
+                # print("leave prefill")
+                return real_prefill_tokens, state, cached_token_len
+            # print("leave")
+            
+            
+        # print("挂起等待")
+        async with node.prefill_condition:
+            await node.prefill_condition.wait()
+        # print("放行")
+        if node.state:
+            return (
+                tokens[-cache_prefill_padding:],
+                self.LRU_cache.get(tuple(tokens[:-cache_prefill_padding])),
+                len(tokens) - cache_prefill_padding,
+            )
+        else:
+            print("prefill failed")
+            return real_prefill_tokens, state, cached_token_len
+
+    async def awake_hang_up_prefills(
+        self,
+        node: TrieNode,
+    ) -> bool:
+        if node.prefill_condition:
+            async with node.prefill_condition:
+                node.prefill_condition.notify_all()
+            node.prefill_condition = None
+            return True
+        else:
+            return False
 
     def cache(
         self,
-        tokens: list[int],
+        tokens: tuple[int, ...],
         state: object,
+        return_trie_node: bool = False,
     ):
         if not tokens:
             return
@@ -95,32 +155,35 @@ class SimpleStateCache:
         node.depend_count += 1
         node.state = True
 
-        if key := self.LRU_cache.put(tuple(tokens), state):
-            node = self.root
+        if key := self.LRU_cache.put(tokens, state):
+            del_node = self.root
             tmp_index = 0
             while tmp_index < len(key[0]):
                 token = key[0][tmp_index]
-                node.depend_count -= 1
+                del_node.depend_count -= 1
 
-                child_node = node.children.get(token)
+                child_node = del_node.children.get(token)
                 assert child_node is not None
 
                 if child_node.depend_count == 1:
-                    del node.children[token]
+                    del del_node.children[token]
                     break
                 else:
-                    node = child_node
+                    del_node = child_node
                 tmp_index += 1
 
             if tmp_index == len(key[0]):
-                node.state = False
-                node.depend_count -= 1
+                del_node.state = False
+                del_node.depend_count -= 1
 
             if isinstance(key[1], list):
                 for _ in range(len(key[1])):
                     del key[1][0]
                     # print("remove")
             del key
+
+        if return_trie_node:
+            return node
 
     def remove(self, tokens: list[int]):
         hashed_tokens = tuple(tokens)

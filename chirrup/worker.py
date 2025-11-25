@@ -98,6 +98,7 @@ class TaskData(TypedDict):
     is_prefilling: Optional[bool]
     state_category: StateCategory
     prefilled_tokens: List[int]
+    prefill_cached: bool
 
 
 class Worker:
@@ -388,10 +389,14 @@ class Worker:
         assert task_data["is_prefilling"] == True
         assert task_data["next_input_token"] != None, "next_input_token shall not be None."
 
-        if (
-            task_data["task"].cache_prefill
-            and len(task_data["task"].prefill_tokens) == task_data["task"].cache_prefill_padding
+        if task_data["task"].cache_prefill and len(task_data["task"].prefill_tokens) == (
+            max(task_data["task"].cache_prefill_padding - 1, 0)
         ):
+            # print(
+            #     "cache_prefill fwd seq",
+            #     task_data["prefilled_tokens"],
+            #     self.tokenizer.decode(task_data["prefilled_tokens"], utf8_errors="ignore"),
+            # )
             task_data["state_category"] = StateCategory.FORWARD_ONE
 
             if task_data["task"].cache_prefill:
@@ -405,10 +410,11 @@ class Worker:
                                 self.batch_state[1][:, [slot_pos], :, :].to(device="cpu", non_blocking=True),
                                 self.batch_state[2][[slot_pos]].to(device="cpu", non_blocking=True),
                             ],
-                            "prefilled_tokens": task_data["prefilled_tokens"],
+                            "prefilled_tokens": tuple(task_data["prefilled_tokens"]),
                         },
                     )
                 )
+                task_data["prefill_cached"] = True
 
         if len(task_data["task"].prefill_tokens) == 0:
             task_data["state_category"] = StateCategory.FORWARD_ONE
@@ -424,10 +430,17 @@ class Worker:
         """处理 Prefill 阶段"""
         task = task_data["task"]
 
+        task_data["prefilled_tokens"].append(task_data["next_input_token"])
+        task_data["next_input_token"] = task.prefill_tokens.pop(0)
+        if len(task.prefill_tokens) == 0:
+            task_data["is_prefilling"] = False
+
         if (
             task_data["task"].cache_prefill
-            and len(task_data["prefilled_tokens"]) == task_data["task"].cache_prefill_padding
+            and len(task_data["task"].prefill_tokens) == (max(task_data["task"].cache_prefill_padding - 1, 0))
+            and not task_data["prefill_cached"]
         ):
+            # print("cache_prefill fwd one", task_data["task"].prefill_tokens)
             task.output_queue.put_nowait(
                 (
                     task.task_id,
@@ -438,16 +451,11 @@ class Worker:
                             self.batch_state[1][:, [slot_pos], :, :].to(device="cpu", non_blocking=True),
                             self.batch_state[2][[slot_pos]].to(device="cpu", non_blocking=True),
                         ],
-                        "prefilled_tokens": task_data["prefilled_tokens"],
+                        "prefilled_tokens": tuple(task_data["prefilled_tokens"]),
                     },
                 )
             )
-
-        task_data["next_input_token"] = task.prefill_tokens.pop(0)
-        if len(task.prefill_tokens) == 0:
-            task_data["is_prefilling"] = False
-        else:
-            task_data["prefilled_tokens"].append(task_data["next_input_token"])
+            task_data["prefill_cached"] = True
 
     def _handle_forward_one_decode_phase(self, task_data: TaskData, slot_pos: int):
         """处理 Decode 阶段"""
@@ -587,7 +595,7 @@ class Worker:
                 if len(task.prefill_tokens) == 0:
                     state_category = StateCategory.FORWARD_ONE
                     is_prefilling = False
-                elif len(task.prefill_tokens) - task.cache_prefill_padding < self.min_forward_seq_len:
+                elif len(task.prefill_tokens) - max((task.cache_prefill_padding - 1), 0) < self.min_forward_seq_len:
                     state_category = StateCategory.FORWARD_ONE
                     is_prefilling = True
                 else:
@@ -601,6 +609,7 @@ class Worker:
                     "next_input_token": next_input_token,
                     "state_category": state_category,
                     "prefilled_tokens": [],
+                    "prefill_cached": False,
                 }
                 self.state_slot[slot_pos] = task_data
 
@@ -658,7 +667,10 @@ class Worker:
     def _run_forward_seq(self, seq_perfill_offset: Tuple[int, int]):
         """运行模型前向推理，token 序列，适合 prefill 模式"""
         token_seq_len_list = [
-            (len(self.state_slot[i]["task"].prefill_tokens) - self.state_slot[i]["task"].cache_prefill_padding)
+            (
+                len(self.state_slot[i]["task"].prefill_tokens)
+                - max((self.state_slot[i]["task"].cache_prefill_padding - 1), 0)
+            )
             for i in range(*seq_perfill_offset)
         ]
         token_seq_len = min(self.max_forward_seq_len_per_forward, *token_seq_len_list)
@@ -708,6 +720,7 @@ class Worker:
             accomplished_task_slot_pos: list[int] = []
 
             for key, task_data in sorted(self.state_slot.items()):
+
                 assert (
                     task_data["state_category"] != StateCategory.FINISHED
                 ), f"Invalid state category: {task_data['state_category'] }"

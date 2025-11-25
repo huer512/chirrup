@@ -56,6 +56,9 @@ class ChatCompletionRequest(BaseModel):
 
     pad_zero: bool = Field(default=True, description="是否在输入的 prompt token 前添加 0")
 
+    use_state_cache: bool = Field(default=True, description="是否使用 state cache")
+    cache_prefill: bool = Field(default=True, description="是否 cache prefill")
+
 
 class ChatCompletionResponseChoice(BaseModel):
     index: int

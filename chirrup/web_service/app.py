@@ -2,6 +2,7 @@ import asyncio
 import json
 import time
 import uuid
+import traceback
 from contextlib import asynccontextmanager
 from typing import List, Dict, Any, Optional, Union, AsyncGenerator
 
@@ -150,19 +151,23 @@ async def create_chat_completion(request: ChatCompletionRequest, connection: Req
     try:
         model_name_list = request.model.split(":")
         if "thinking" in model_name_list:
-            cache_prefill_padding = 2
+            cache_prefill_padding = 3
             prompt = format_openai_message_with_thinking(request.messages)
         elif "no-thinking" in model_name_list:
             prompt = format_openai_message_no_thinking(request.messages)
             cache_prefill_padding = 0
         else:
             prompt = format_openai_message_quick_thinking(request.messages)
-            cache_prefill_padding = 6
+            cache_prefill_padding = 7
 
         # print(f"'''{prompt}'''")
         # 编码输入
         prefill_tokens = [0] if request.pad_zero else []
         prefill_tokens += engine_core.tokenizer.encode(prompt)
+        # print(
+        #     prefill_tokens[: cache_prefill_padding * -1],
+        #     f"'''{engine_core.tokenizer.decode(prefill_tokens[:cache_prefill_padding*-1])}'''",
+        # )
 
         # 处理停止词
         stop_tokens = []
@@ -174,10 +179,24 @@ async def create_chat_completion(request: ChatCompletionRequest, connection: Req
                     stop_tokens.extend(engine_core.tokenizer.encode(stop_word))
 
         # 查找缓存
-        real_prefill_tokens, state = state_cache.check(prefill_tokens)
+        # if request.use_state_cache:
+        #     real_prefill_tokens, state, cached_token_len = state_cache.check(prefill_tokens)
+        # else:
+        #     real_prefill_tokens, state, cached_token_len = prefill_tokens, None, 0
 
-        # if real_prefill_tokens:
-        #     print(f"使用缓存，已省略 {len(prefill_tokens) - len(real_prefill_tokens)} 个 token")
+        if request.use_state_cache:
+            real_prefill_tokens, state, cached_token_len = await state_cache.check_and_wait_prefill(
+                prefill_tokens, cache_prefill_padding
+            )
+        else:
+            real_prefill_tokens, state, cached_token_len = prefill_tokens, None, 0
+
+        # if state:
+        #     print(
+        #         f"使用缓存，已省略 {len(prefill_tokens) - len(real_prefill_tokens)} 个 token",
+        #         real_prefill_tokens,
+        #         f"'''{engine_core.tokenizer.decode(prefill_tokens[:-1*len(real_prefill_tokens)])}'''",
+        #     )
 
         # 创建 completion 对象
         completion = engine_core.completion(
@@ -190,7 +209,7 @@ async def create_chat_completion(request: ChatCompletionRequest, connection: Req
             presence_penalty=request.presence_penalty,
             frequency_penalty=request.frequency_penalty,
             stop_tokens=set(DEFAULT_STOP_TOKENS + stop_tokens),
-            cache_prefill=config.state_cache_size > 0,
+            cache_prefill=config.state_cache_size > 0 and request.cache_prefill,
             cache_prefill_padding=cache_prefill_padding,
         )
 
@@ -272,8 +291,16 @@ async def stream_chat_completion(
                                 continue
                             combined_stream.put_nowait(f"data: {chunk.model_dump_json()}\n\n")
                     elif event[0] == "cache_prefill":
-                        state_cache.cache(event[1]["prefilled_tokens"], event[1]["state"])
-                        print("已缓存预填充", event[1]["prefilled_tokens"])
+                        # state_cache.cache(event[1]["prefilled_tokens"], event[1]["state"])
+                        cache_trie_node = state_cache.cache(
+                            event[1]["prefilled_tokens"], event[1]["state"], return_trie_node=True
+                        )
+                        print("唤醒挂起", await state_cache.awake_hang_up_prefills(cache_trie_node))
+                        # print(
+                        #     "已缓存预填充",
+                        #     event[1]["prefilled_tokens"],
+                        #     f"'''{engine_core.tokenizer.decode(event[1]["prefilled_tokens"])}'''",
+                        # )
 
             except Exception as e:
                 error_chunk = {"error": {"message": str(e), "type": "internal_error"}}
@@ -338,7 +365,11 @@ async def create_non_stream_completion_with_keep_alive(
                         else:
                             continue
                 elif event[0] == "cache_prefill":
-                    state_cache.cache(event[1]["prefilled_tokens"], event[1]["state"])
+                    cache_trie_node = state_cache.cache(
+                        event[1]["prefilled_tokens"], event[1]["state"], return_trie_node=True
+                    )
+                    print("唤醒挂起", await state_cache.awake_hang_up_prefills(cache_trie_node))
+                    # state_cache.cache(event[1]["prefilled_tokens"], event[1]["state"])
                     print("已缓存预填充", event[1]["prefilled_tokens"])
             return reasoning_content, content
 
@@ -375,7 +406,7 @@ async def create_non_stream_completion_with_keep_alive(
         yield response.model_dump_json()
 
     except Exception as e:
-        import traceback
+
         print(traceback.format_exc())
         error_response = {"error": {"message": str(e), "type": "internal_error"}}
         yield json.dumps(error_response)
@@ -636,6 +667,5 @@ async def general_exception_handler(request, exc):
 if __name__ == "__main__":
     # 加载配置
     config = get_config()
-
     # 启动服务器
     uvicorn.run(app, host=config.host, port=config.port, reload=False, log_level="info")

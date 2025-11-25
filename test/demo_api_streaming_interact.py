@@ -29,6 +29,10 @@ async def stream_openai_request():
             messages=messages,
             stream=True,
             top_p=0.8,
+            extra_body={
+                # "use_state_cache":False
+                # "cache_prefill": False,
+            }
         )
         c_start = time.perf_counter()
         async for chunk in stream:

@@ -7,7 +7,7 @@ async def send_request(client: AsyncOpenAI, model, messages, request_id):
         response = await client.chat.completions.create(
             model=model,
             messages=messages,
-            max_tokens=1024
+            max_tokens=100,   
         )
         content = response.choices[0].message.content
         print(f"Request {request_id}: {content}")
@@ -25,8 +25,8 @@ async def main():
 
     # 创建任务列表
     tasks = []
-    for i in range(0, 1):
-        messages = [{"role": "user", "content": f"为什么 {i} 是一个有趣的数字？"}]
+    for i in range(0, 20):
+        messages = [{"role": "user", "content": f"为什么 0 是一个有趣的数字？"}]
         task = send_request(client, "rwkv-latest", messages, i)
         tasks.append(task)
 

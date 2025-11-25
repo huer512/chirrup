@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "fastapi>=0.121.0",
+    "loguru>=0.7.3",
     "ninja>=1.13.0",
     "numpy>=2.3.3",
     "pydantic>=2.12.3",
