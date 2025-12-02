@@ -112,8 +112,6 @@ class ErrorResponse(BaseModel):
 
 
 # Alic 翻译接口
-
-
 class TranslateRequest(BaseModel):
     source_lang: str = "auto"
     target_lang: str
@@ -133,8 +131,6 @@ class TranslationResult(BaseModel):
 
 
 # Rollout 接口
-
-
 class RolloutRequest(BaseModel):
     model: str = Field(default="rwkv-latest", description="模型名称")
     contents: List[str] = Field(..., description="Rollout 列表")
@@ -192,3 +188,93 @@ class RolloutStreamResponse(BaseModel):
 class RolloutStreamChoice(BaseModel):
     index: int
     delta: Dict[str, Any]
+
+
+# Completion 接口
+class CompletionRequest(BaseModel):
+    model: str = Field(default="rwkv-latest", description="模型名称")
+    prompt: str = Field(..., description="生成完成的提示，编码为字符串")
+
+    # 采样参数（完全支持）
+    max_tokens: int = Field(
+        default=DEFAULT_SAMPLING_CONFIG["max_tokens"],
+        ge=1,
+        description="最大生成 token 数",
+    )
+    temperature: float = Field(
+        default=DEFAULT_SAMPLING_CONFIG["temperature"],
+        ge=0.0,
+        le=2.0,
+        description="采样温度",
+    )
+    top_p: float = Field(
+        default=DEFAULT_SAMPLING_CONFIG["top_p"],
+        ge=0.0,
+        le=1.0,
+        description="nucleus 采样参数",
+    )
+    presence_penalty: float = Field(
+        default=DEFAULT_SAMPLING_CONFIG["presence_penalty"],
+        ge=0,
+        le=2.0,
+        description="存在惩罚",
+    )
+    frequency_penalty: float = Field(
+        default=DEFAULT_SAMPLING_CONFIG["frequency_penalty"],
+        ge=0,
+        le=2.0,
+        description="频率惩罚",
+    )
+    penalty_decay: float = Field(
+        default=DEFAULT_SAMPLING_CONFIG["penalty_decay"],
+        ge=0.0,
+        le=1.0,
+        description="惩罚衰减",
+    )
+
+    # 停止条件
+    stop: Optional[Union[str, List[str]]] = Field(default=None, description="停止词")
+    stream: bool = Field(default=False, description="是否流式返回")
+
+    # Chirrup 特有参数
+    pad_zero: bool = Field(default=True, description="是否在输入的 prompt token 前添加 0")
+
+    # 接收但忽略的参数（确保 API 兼容性）
+    echo: Optional[bool] = Field(default=None, description="除了补全之外，还回显提示")
+    user: Optional[str] = Field(default=None, description="用户标识符")
+    seed: Optional[int] = Field(default=None, description="随机种子")
+    logprobs: Optional[int] = Field(default=None, description="返回 logprobs")
+    best_of: Optional[int] = Field(default=None, description="生成多个选最佳")
+    logit_bias: Optional[Dict[str, float]] = Field(default=None, description="token 偏置")
+    suffix: Optional[str] = Field(default=None, description="插入模式后缀")
+    n: Optional[int] = Field(default=None, description="生成补全数量")
+
+
+class CompletionChoice(BaseModel):
+    text: str
+    index: int
+    logprobs: Optional[Any] = None
+    finish_reason: str
+
+
+class CompletionResponse(BaseModel):
+    id: str
+    object: str = "text_completion"
+    created: int
+    model: str
+    choices: List[CompletionChoice]
+    usage: ChatCompletionResponseUsage
+
+
+class CompletionStreamChoice(BaseModel):
+    text: str
+    index: int
+    finish_reason: Optional[str] = None
+
+
+class CompletionStreamResponse(BaseModel):
+    id: str
+    object: str = "text_completion"
+    created: int
+    model: str
+    choices: List[CompletionStreamChoice]

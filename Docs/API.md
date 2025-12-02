@@ -307,6 +307,88 @@ Generate multiple completions in a batch.
 }
 ```
 
+### Completions
+
+**Endpoint:** `POST /v1/completions`
+
+Create a text completion for the provided prompt. This endpoint does NOT apply any prompt template formatting - it uses the raw prompt text directly.
+
+**Request Body:**
+
+```json
+{
+  "model": "rwkv-latest",
+  "prompt": "Once upon a time",
+  "max_tokens": 100,
+  "temperature": 1.0,
+  "top_p": 0.8,
+  "stream": false,
+  "stop": null
+}
+```
+
+**Parameters:**
+
+| Parameter           | Type         | Default       | Description                                    |
+| ------------------- | ------------ | ------------- | ---------------------------------------------- |
+| `model`             | string       | `rwkv-latest` | Model name to use                              |
+| `prompt`            | string       | Required      | The prompt text (raw, no template formatting)  |
+| `stream`            | boolean      | `false`       | Enable streaming response                      |
+| `temperature`       | float        | `1.0`         | Sampling temperature (0.0-2.0)                 |
+| `top_p`             | float        | `0.8`         | Nucleus sampling parameter (0.0-1.0)           |
+| `max_tokens`        | int          | `2048`        | Maximum tokens to generate (min: 1)            |
+| `presence_penalty`  | float        | `0.0`         | Presence penalty (0.0-2.0)                     |
+| `frequency_penalty` | float        | `0.0`         | Frequency penalty (0.0-2.0)                    |
+| `stop`              | string/array | `null`        | Stop words/sequences                           |
+| `pad_zero`          | boolean      | `true`        | Pad prompt with zero token                     |
+
+**Ignored Parameters (for API compatibility):**
+
+The following parameters are accepted but ignored: `echo`, `user`, `seed`, `logprobs`, `best_of`, `logit_bias`, `suffix`, `n`
+
+**Non-Streaming Response:**
+
+```json
+{
+  "id": "cmpl-abc123",
+  "object": "text_completion",
+  "created": 1703123456,
+  "model": "rwkv-latest",
+  "choices": [
+    {
+      "text": " there was a beautiful kingdom...",
+      "index": 0,
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 4,
+    "completion_tokens": 15,
+    "total_tokens": 19
+  }
+}
+```
+
+**Streaming Response:**
+
+```
+data: {"id":"cmpl-abc123","object":"text_completion","created":1703123456,"model":"rwkv-latest","choices":[{"text":" there","index":0}]}
+
+data: {"id":"cmpl-abc123","object":"text_completion","created":1703123456,"model":"rwkv-latest","choices":[{"text":" was","index":0}]}
+
+data: {"id":"cmpl-abc123","object":"text_completion","created":1703123456,"model":"rwkv-latest","choices":[{"text":"","index":0,"finish_reason":"stop"}]}
+
+data: [DONE]
+```
+
+**Key Differences from Chat Completions:**
+
+- Uses raw prompt text without any template formatting
+- Response contains `text` field instead of `message` object
+- Does not use state caching
+- Object type is `text_completion` instead of `chat.completion`
+
 ## Usage Examples
 
 ### Using curl
@@ -337,6 +419,30 @@ curl -X POST "http://localhost:8000/v1/chat/completions" \
     ],
     "stream": true,
     "max_tokens": 200
+  }'
+```
+
+**Completions:**
+
+```bash
+# Non-streaming completion
+curl -X POST "http://localhost:8000/v1/completions" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "rwkv-latest",
+    "prompt": "Once upon a time",
+    "max_tokens": 100,
+    "temperature": 1.0
+  }'
+
+# Streaming completion
+curl -X POST "http://localhost:8000/v1/completions" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "rwkv-latest",
+    "prompt": "The quick brown fox",
+    "max_tokens": 50,
+    "stream": true
   }'
 ```
 
@@ -375,6 +481,39 @@ stream = client.chat.completions.create(
 for chunk in stream:
     if chunk.choices[0].delta.content:
         print(chunk.choices[0].delta.content, end="", flush=True)
+print()
+```
+
+**Completions:**
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:8000/v1",
+    api_key="not-required"
+)
+
+# Non-streaming completion
+response = client.completions.create(
+    model="rwkv-latest",
+    prompt="Once upon a time",
+    max_tokens=100,
+    temperature=1.0
+)
+print(response.choices[0].text)
+
+# Streaming completion
+stream = client.completions.create(
+    model="rwkv-latest",
+    prompt="The quick brown fox",
+    max_tokens=50,
+    stream=True
+)
+
+for chunk in stream:
+    if chunk.choices[0].text:
+        print(chunk.choices[0].text, end="", flush=True)
 print()
 ```
 

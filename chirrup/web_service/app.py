@@ -47,6 +47,12 @@ from chirrup.web_service.api_model import (
     RolloutRequest,
     RolloutStreamChoice,
     RolloutStreamResponse,
+    # Completion 接口
+    CompletionRequest,
+    CompletionResponse,
+    CompletionStreamResponse,
+    CompletionChoice,
+    CompletionStreamChoice,
 )
 
 
@@ -407,6 +413,190 @@ async def create_non_stream_completion_with_keep_alive(
 
     except Exception as e:
 
+        print(traceback.format_exc())
+        error_response = {"error": {"message": str(e), "type": "internal_error"}}
+        yield json.dumps(error_response)
+    finally:
+        completion.abort()
+
+
+@app.post("/v1/completions")
+async def create_completion(request: CompletionRequest, connection: Request):
+    """创建文本补全，支持流式和非流式响应"""
+
+    if not engine_core:
+        raise HTTPException(status_code=503, detail="模型未加载")
+
+    try:
+        prompt = request.prompt
+
+        prefill_tokens = [0] if request.pad_zero else []
+        prefill_tokens += engine_core.tokenizer.encode(prompt)
+
+        # 处理停止词
+        stop_tokens = []
+        if request.stop:
+            if isinstance(request.stop, str):
+                stop_tokens = engine_core.tokenizer.encode(request.stop)
+            else:
+                for stop_word in request.stop:
+                    stop_tokens.extend(engine_core.tokenizer.encode(stop_word))
+
+        # 创建 completion 对象
+        completion = engine_core.completion(
+            prompt_str=prompt,
+            prefill_tokens=prefill_tokens,
+            state=None,  # 不使用 state
+            temperature=request.temperature,
+            top_p=request.top_p,
+            max_tokens=request.max_tokens,
+            presence_penalty=request.presence_penalty,
+            frequency_penalty=request.frequency_penalty,
+            stop_tokens=set(DEFAULT_STOP_TOKENS + stop_tokens),
+            cache_prefill=False,
+        )
+
+        if request.stream:
+            return StreamingResponse(
+                stream_completion(completion, request, connection),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                },
+            )
+        else:
+            return StreamingResponse(
+                create_non_stream_completion(completion, request, prefill_tokens),
+                media_type="application/json",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                },
+            )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"生成失败: {str(e)}")
+
+
+async def stream_completion(
+    completion: AsyncEngineCompletion,
+    request: CompletionRequest,
+    connection: Request,
+) -> AsyncGenerator[str, None]:
+    """流式返回文本补全"""
+
+    completion_id = f"cmpl-{uuid.uuid4().hex}"
+    created = int(time.time())
+
+    combined_stream = asyncio.Queue()
+    gen_task = None
+
+    try:
+
+        async def handel_gen_task():
+            try:
+                async for event in completion:
+                    if event[0] == "token":
+                        chunk = CompletionStreamResponse(
+                            id=completion_id,
+                            created=created,
+                            model=request.model,
+                            choices=[
+                                CompletionStreamChoice(
+                                    index=0,
+                                    text=event[2],
+                                )
+                            ],
+                        )
+                        combined_stream.put_nowait(f"data: {chunk.model_dump_json()}\n\n")
+
+            except Exception as e:
+                error_chunk = {"error": {"message": str(e), "type": "internal_error"}}
+                combined_stream.put_nowait(f"data: {json.dumps(error_chunk)}\n\n")
+                combined_stream.put_nowait("data: [DONE]\n\n")
+                combined_stream.put_nowait(None)
+
+            final_chunk = CompletionStreamResponse(
+                id=completion_id,
+                created=created,
+                model=request.model,
+                choices=[CompletionStreamChoice(index=0, text="", finish_reason="stop")],
+            )
+            combined_stream.put_nowait(f"data: {final_chunk.model_dump_json()}\n\n")
+            combined_stream.put_nowait("data: [DONE]\n\n")
+            combined_stream.put_nowait(None)
+
+        gen_task = asyncio.create_task(handel_gen_task())
+
+        while True:
+            try:
+                chunk = await asyncio.wait_for(combined_stream.get(), timeout=10)
+                if chunk is None:
+                    break
+                yield chunk
+            except asyncio.TimeoutError:
+                yield ":\n\n"
+
+    except Exception as e:
+        error_chunk = {"error": {"message": str(e), "type": "internal_error"}}
+        yield f"data: {json.dumps(error_chunk)}\n\n"
+    finally:
+        if gen_task:
+            gen_task.cancel()
+        completion.abort()
+
+
+async def create_non_stream_completion(
+    completion: AsyncEngineCompletion,
+    request: CompletionRequest,
+    prefill_tokens: List[int],
+) -> AsyncGenerator[str, None]:
+    """创建非流式补全响应，包含保活机制"""
+
+    completion_id = f"cmpl-{uuid.uuid4().hex}"
+    created = int(time.time())
+
+    try:
+
+        async def full_completion_handle():
+            content = ""
+            async for event in completion:
+                if event[0] == "token":
+                    content += event[2]
+            return content
+
+        completion_task = asyncio.create_task(full_completion_handle())
+        content = await completion_task
+
+        prompt_tokens = len(prefill_tokens)
+        completion_tokens = len(completion.task.generated_tokens)
+        total_tokens = prompt_tokens + completion_tokens
+
+        response = CompletionResponse(
+            id=completion_id,
+            created=created,
+            model=request.model,
+            choices=[
+                CompletionChoice(
+                    index=0,
+                    text=content,
+                    logprobs=None,
+                    finish_reason="stop",
+                )
+            ],
+            usage=ChatCompletionResponseUsage(
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+            ),
+        )
+
+        yield response.model_dump_json()
+
+    except Exception as e:
         print(traceback.format_exc())
         error_response = {"error": {"message": str(e), "type": "internal_error"}}
         yield json.dumps(error_response)
