@@ -374,9 +374,9 @@ async def create_non_stream_completion_with_keep_alive(
                     cache_trie_node = state_cache.cache(
                         event[1]["prefilled_tokens"], event[1]["state"], return_trie_node=True
                     )
-                    print("唤醒挂起", await state_cache.awake_hang_up_prefills(cache_trie_node))
+                    await state_cache.awake_hang_up_prefills(cache_trie_node)
                     # state_cache.cache(event[1]["prefilled_tokens"], event[1]["state"])
-                    print("已缓存预填充", event[1]["prefilled_tokens"])
+                    # print("已缓存预填充", event[1]["prefilled_tokens"])
             return reasoning_content, content
 
         # 获取响应结果
