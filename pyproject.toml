@@ -38,6 +38,7 @@ conflicts = [
         { extra = "torch-rocm" },
     ],
 ]
+python-install-mirror = "https://registry.npmmirror.com/-/binary/python-build-standalone/"
 
 [tool.uv.sources]
 torch = [
@@ -47,6 +48,10 @@ torch = [
     { index = "pytorch-rocm", extra = "torch-rocm" },
 ]
 pytorch-triton-rocm = { index = "pytorch-rocm" }
+
+[[index]]
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
@@ -80,3 +85,4 @@ dev = [
     "ipykernel>=7.1.0",
     "ipython>=9.7.0",
 ]
+

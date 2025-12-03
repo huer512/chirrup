@@ -87,15 +87,47 @@ uv pip install torch torchvision --index-url https://download.pytorch.org/whl/ro
 
 ## 🌐 Start API Service
 
-### Quick Start
+### Quick Start (Recommended)
+
+The easiest way to start the API service is using the provided startup script:
+
+```bash
+# 1. Edit startup.sh and configure MODEL_PATH and other parameters
+# 2. Make the script executable (if needed)
+chmod +x startup.sh
+
+# 3. Run the startup script
+./startup.sh
+```
+
+**Configuring the startup script:**
+
+Edit `startup.sh` and modify the configuration section at the top:
+
+```bash
+# 模型文件路径（必需）
+MODEL_PATH="/path/to/your/model.pth"
+
+# Worker 数量（可选）
+WORKER_NUM=1
+
+# 最大批处理大小（可选）
+BATCH_SIZE=32
+
+# 其他参数...
+```
+
+The service will start at **`http://127.0.0.1:8000`** (or your configured host/port), providing OpenAI-compatible API endpoints.
+
+### Manual Start
+
+Alternatively, you can start the service manually:
 
 ```bash
 # Currently, `triton._C.libtriton` doesn't declare itself GIL-safe, but it actually works fine—so we
 # manually disable the GIL with `PYTHON_GIL=0`.
 PYTHON_GIL=0 uv run --frozen python -m chirrup.web_service.app --model_path /path/to/your/model
 ```
-
-The service will start at **`http://127.0.0.1:8000`**, providing OpenAI-compatible API endpoints.
 
 📖 **Detailed Documentation**: Check [Chirrup API Documentation](./Docs/API.md) for complete command-line parameters and API interface documentation.
 
